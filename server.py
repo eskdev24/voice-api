@@ -186,91 +186,169 @@ SEARCH_REGEX = re.compile(r'(?:search|find|look) (?:for )?(.+)')
 
 # Pattern groups - tuples of (patterns_tuple, command_type, confidence)
 COMMAND_PATTERNS = [
-    # Payment methods (check first - most specific)
+    # ==== PAYMENT METHODS (highest priority - most specific) ====
     (('pay with momo', 'pay with mobile money', 'use momo', 'use mobile money', 
       'momo payment', 'mobile money payment', 'select momo', 'mtn momo', 
-      'mtn mobile money', 'vodafone cash', 'airteltigo money', 'mobile money'), 
+      'mtn mobile money', 'vodafone cash', 'airteltigo money', 'mobile money',
+      'pay momo', 'pay using momo', 'pay using mobile money'), 
      'pay_with_momo', 0.95),
     
     (('pay with card', 'use card', 'card payment', 'credit card', 'debit card',
-      'pay with visa', 'pay with mastercard', 'visa payment'), 
+      'pay with visa', 'pay with mastercard', 'visa payment', 'pay card',
+      'pay using card', 'use my card', 'use credit card', 'use debit card'), 
      'pay_with_card', 0.95),
     
     (('pay with cash', 'cash on delivery', 'cash payment', 'pay on delivery',
-      'pay when i receive', 'pay at delivery', 'cod'), 
+      'pay when i receive', 'pay at delivery', 'cod', 'pay cash',
+      'cash when delivered', 'pay on arrival', 'pay at door'), 
      'pay_with_cash', 0.95),
     
-    # Profile Actions (check before navigation)
+    # ==== CART ACTIONS (ecommerce core - check before navigation) ====
+    # Clear cart
+    (('clear cart', 'clear my cart', 'empty cart', 'empty my cart',
+      'remove all items', 'remove all from cart', 'delete all', 'clear all',
+      'remove everything', 'delete everything', 'start fresh', 'reset cart'), 
+     'clear_cart', 0.95),
+    
+    # Remove from cart - EXPANDED with many variations
+    (('remove from cart', 'remove from my cart', 'delete from cart', 
+      'remove this', 'remove it', 'remove item', 'remove the item',
+      'delete this', 'delete it', 'delete item', 'take out of cart',
+      'take it out', 'take this out', 'dont want this', "don't want this",
+      'i dont want', "i don't want", 'cancel item', 'cancel this',
+      'remove product', 'delete product', 'get rid of', 'take away'), 
+     'remove_from_cart', 0.95),
+    
+    # Add to cart - EXPANDED
+    (('add to cart', 'add to my cart', 'add this to cart', 'put in cart',
+      'add it to cart', 'add this', 'buy this', 'i want this', 'get this',
+      'i will take', "i'll take", 'put this in cart', 'add item',
+      'add product', 'add it', 'put it in cart', 'include this',
+      'i need this', 'give me this', 'i want to buy'), 
+     'add_to_cart', 0.95),
+    
+    # Quantity changes
+    (('increase quantity', 'add more', 'add one more', 'add another',
+      'increase', 'plus one', '+1', 'one more', 'get more'), 
+     'increase_quantity', 0.9),
+    
+    (('decrease quantity', 'reduce quantity', 'remove one', 'less',
+      'minus one', '-1', 'one less', 'reduce', 'fewer'), 
+     'decrease_quantity', 0.9),
+    
+    # ==== CHECKOUT (ecommerce core) ====
+    (('checkout', 'check out', 'proceed to checkout', 'place order', 
+      'complete order', 'pay now', 'make payment', 'ready to pay',
+      'finish order', 'submit order', 'confirm order', 'complete purchase',
+      'finalize order', 'buy now', 'purchase now', 'proceed to payment',
+      'go to checkout', 'continue to checkout', 'process order',
+      'i want to pay', "i'm ready to pay", 'ready to checkout',
+      'complete my order', 'place my order', 'pay for items', 'pay for this'), 
+     'checkout', 0.95),
+    
+    # ==== NAVIGATION - CART ====
+    (('go to cart', 'go cart', 'open cart', 'view cart', 'show cart', 'my cart',
+      'see cart', 'check cart', 'shopping cart', 'view my cart', 'show my cart',
+      'open my cart', 'whats in my cart', "what's in my cart", 'cart please',
+      'see my cart', 'check my cart', 'go to my cart', 'the cart'), 
+     ('navigate', 'cart'), 0.95),
+    
+    # ==== NAVIGATION - HOME ====
+    (('go to home', 'go home', 'back to home', 'home page', 'main page', 
+      'back home', 'return home', 'take me home', 'homepage', 'main screen',
+      'start page', 'landing page', 'go back home', 'back to start'), 
+     ('navigate', 'home'), 0.95),
+    
+    # ==== NAVIGATION - ORDERS ====
+    (('go to orders', 'my orders', 'view orders', 'show orders', 'order history',
+      'see orders', 'check orders', 'past orders', 'previous orders',
+      'view my orders', 'show my orders', 'check my orders', 'purchase history',
+      'what did i order', 'my purchases', 'order status', 'all orders'), 
+     ('navigate', 'orders'), 0.95),
+    
+    # Track order
+    (('track order', 'track my order', 'where is my order', 'order tracking',
+      'track delivery', 'where is my delivery', 'track package', 'track shipment',
+      'delivery status', 'shipping status', 'when will it arrive',
+      'when will my order arrive', 'order location', 'find my order'), 
+     'track_order', 0.95),
+    
+    # Reorder
+    (('reorder', 'order again', 'buy again', 'repeat order', 'same order',
+      'order the same', 'reorder this', 'purchase again'), 
+     'reorder', 0.9),
+    
+    # Cancel order
+    (('cancel order', 'cancel my order', 'cancel this order', 'stop order',
+      'cancel purchase', 'dont want order', "don't want order"), 
+     'cancel_order', 0.9),
+    
+    # ==== NAVIGATION - PROFILE ====
+    (('go to profile', 'my profile', 'my account', 'account', 'settings', 
+      'profile', 'user profile', 'account settings', 'my settings',
+      'view profile', 'open profile', 'profile page', 'account page'), 
+     ('navigate', 'profile'), 0.95),
+    
+    # ==== NAVIGATION - SHOP/BROWSE ====
+    (('go to shop', 'browse', 'all products', 'view products', 'shop', 'store',
+      'browse products', 'see products', 'show products', 'product catalog',
+      'view catalog', 'go shopping', 'start shopping', 'shop now',
+      'explore products', 'product list', 'all items'), 
+     ('navigate', 'shop'), 0.95),
+    
+    # Browse categories
+    (('browse categories', 'show categories', 'view categories', 'categories',
+      'product categories', 'all categories', 'category list'), 
+     ('navigate', 'categories'), 0.9),
+    
+    # ==== PROFILE ACTIONS ====
     (('sign out', 'log out', 'logout', 'sign me out', 'log me out', 
-      'exit account', 'leave account'), 
+      'exit account', 'leave account', 'logout please', 'sign off'), 
      'sign_out', 0.95),
     
     (('edit profile', 'edit my profile', 'update profile', 'change profile',
-      'modify profile', 'profile settings'), 
+      'modify profile', 'profile settings', 'update my profile'), 
      'edit_profile', 0.9),
     
     (('voice settings', 'voice preferences', 'voice options', 'microphone settings',
-      'speech settings', 'change voice settings'), 
+      'speech settings', 'change voice settings', 'voice control settings'), 
      'voice_settings', 0.9),
     
     (('notification settings', 'notifications', 'notification preferences',
-      'push notifications', 'manage notifications', 'change notifications'), 
+      'push notifications', 'manage notifications', 'change notifications',
+      'alert settings', 'notification options'), 
      'notification_settings', 0.9),
     
     (('manage addresses', 'my addresses', 'delivery addresses', 'shipping addresses',
-      'add address', 'edit address', 'change address', 'addresses'), 
+      'add address', 'edit address', 'change address', 'addresses',
+      'saved addresses', 'address book', 'delivery address', 'shipping address'), 
      'manage_addresses', 0.9),
     
-    (('change pin', 'change my pin', 'update pin', 'new pin', 'reset pin', 'modify pin'), 
+    (('change pin', 'change my pin', 'update pin', 'new pin', 'reset pin', 
+      'modify pin', 'set pin', 'set new pin'), 
      'change_pin', 0.9),
     
     (('change password', 'change my password', 'update password', 'new password',
-      'reset password', 'modify password'), 
+      'reset password', 'modify password', 'set password', 'set new password'), 
      'change_password', 0.9),
     
     (('help center', 'support', 'customer support', 'contact support',
-      'get help', 'need help', 'faq', 'faqs'), 
+      'get help', 'need help', 'faq', 'faqs', 'customer service',
+      'help desk', 'contact us', 'support center'), 
      'help_center', 0.9),
     
-    # Cart actions (before navigation)
-    (('clear cart', 'clear my cart', 'empty cart', 'empty my cart',
-      'remove all items', 'remove all', 'delete all', 'clear all'), 
-     'clear_cart', 0.9),
+    # ==== WISHLIST ====
+    (('add to wishlist', 'save for later', 'wishlist', 'add to favorites',
+      'favorite this', 'save item', 'bookmark', 'save this'), 
+     'add_to_wishlist', 0.9),
     
-    (('remove from cart', 'delete from cart', 'remove this', 'remove it',
-      'delete this', 'take out of cart'), 
-     'remove_from_cart', 0.85),
+    (('view wishlist', 'my wishlist', 'show wishlist', 'saved items',
+      'my favorites', 'favorites', 'saved for later'), 
+     ('navigate', 'wishlist'), 0.9),
     
-    # Add to cart (simple patterns without product - will prompt for product)
-    (('add to cart', 'add to my cart', 'add this to cart', 'put in cart',
-      'add it to cart', 'add this', 'buy this', 'i want this', 'get this'), 
-     'add_to_cart', 0.9),
-    
-    # Navigation
-    (('go to cart', 'go cart', 'open cart', 'view cart', 'show cart', 'my cart',
-      'see cart', 'check cart', 'shopping cart'), 
-     ('navigate', 'cart'), 0.95),
-    
-    (('go to home', 'go home', 'back to home', 'home page', 'main page', 'home'), 
-     ('navigate', 'home'), 0.95),
-    
-    (('go to orders', 'my orders', 'view orders', 'show orders', 'order history',
-      'see orders', 'check orders', 'orders'), 
-     ('navigate', 'orders'), 0.95),
-    
-    (('go to profile', 'my profile', 'my account', 'account', 'settings', 'profile'), 
-     ('navigate', 'profile'), 0.95),
-    
-    (('go to shop', 'browse', 'all products', 'view products', 'shop', 'store'), 
-     ('navigate', 'shop'), 0.95),
-    
-    # Checkout
-    (('checkout', 'check out', 'proceed to checkout', 'place order', 
-      'complete order', 'pay now', 'make payment', 'ready to pay'), 
-     'checkout', 0.9),
-    
-    # Help
-    (('help', 'help me', 'what can you do', 'commands'), 
+    # ==== HELP ====
+    (('help', 'help me', 'what can you do', 'commands', 'voice commands',
+      'available commands', 'what can i say', 'how to use voice'), 
      'help', 0.9),
 ]
 
