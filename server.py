@@ -341,17 +341,38 @@ def parse_command(text: str) -> dict:
     action_words = ['go', 'sign', 'log', 'show', 'open', 'view', 'check', 'clear', 
                     'add', 'remove', 'pay', 'navigate', 'my', 'the', 'back', 'take',
                     'edit', 'change', 'update', 'help', 'checkout', 'cart', 'home',
-                    'orders', 'profile', 'settings', 'out', 'off']
+                    'orders', 'profile', 'settings', 'out', 'off', 'delete', 'empty',
+                    'cancel', 'track', 'place', 'complete', 'proceed', 'confirm']
     text_words = text.split()
     
     # If text starts with or contains action words but wasn't matched, return unknown
     if text_words and text_words[0] in action_words:
         return {"type": "unknown", "confidence": 0.3, "raw_text": text}
     
-    # Check if any action word is in the text
-    if any(word in text for word in ['go to', 'sign out', 'log out', 'check out', 
-                                       'clear cart', 'my cart', 'my orders', 
-                                       'view cart', 'open cart', 'go home']):
+    # Comprehensive list of action phrases that should NOT be treated as search
+    action_phrases = [
+        # Navigation
+        'go to', 'go home', 'go back', 'go cart', 'go orders', 'go profile',
+        # Cart actions
+        'my cart', 'view cart', 'open cart', 'clear cart', 'empty cart',
+        'remove from cart', 'delete from cart', 'add to cart', 'put in cart',
+        'remove item', 'delete item', 'remove this', 'delete this',
+        # Orders
+        'my orders', 'view orders', 'track order', 'cancel order',
+        # Auth
+        'sign out', 'log out', 'sign in', 'log in',
+        # Checkout
+        'check out', 'checkout', 'pay now', 'pay with', 'place order',
+        'complete order', 'confirm order', 'proceed to',
+        # Profile
+        'edit profile', 'change password', 'change pin', 'voice settings',
+        'notification settings', 'manage addresses',
+        # Help
+        'help me', 'what can', 'how do i',
+    ]
+    
+    # Check if any action phrase is in the text
+    if any(phrase in text for phrase in action_phrases):
         return {"type": "unknown", "confidence": 0.3, "raw_text": text}
     
     # Only treat as search if long enough and looks like a product query
