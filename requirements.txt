@@ -1,0 +1,7 @@
+# Buyvia Voice Service Requirements
+flask>=2.3.0
+flask-cors>=4.0.0
+speechrecognition>=3.10.0
+pydub>=0.25.1
+rapidfuzz>=3.0.0
+gunicorn>=21.2.0
