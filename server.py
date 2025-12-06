@@ -336,7 +336,25 @@ def parse_command(text: str) -> dict:
         if query:
             return {"type": "search", "query": query, "confidence": 0.85}
     
-    # 8. Default: treat as search if long enough
+    # 8. Only treat as search if it doesn't look like an action command
+    # Avoid treating navigation/action commands as search
+    action_words = ['go', 'sign', 'log', 'show', 'open', 'view', 'check', 'clear', 
+                    'add', 'remove', 'pay', 'navigate', 'my', 'the', 'back', 'take',
+                    'edit', 'change', 'update', 'help', 'checkout', 'cart', 'home',
+                    'orders', 'profile', 'settings', 'out', 'off']
+    text_words = text.split()
+    
+    # If text starts with or contains action words but wasn't matched, return unknown
+    if text_words and text_words[0] in action_words:
+        return {"type": "unknown", "confidence": 0.3, "raw_text": text}
+    
+    # Check if any action word is in the text
+    if any(word in text for word in ['go to', 'sign out', 'log out', 'check out', 
+                                       'clear cart', 'my cart', 'my orders', 
+                                       'view cart', 'open cart', 'go home']):
+        return {"type": "unknown", "confidence": 0.3, "raw_text": text}
+    
+    # Only treat as search if long enough and looks like a product query
     if len(text) > 2:
         return {"type": "search", "query": text, "confidence": 0.5}
     
