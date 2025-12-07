@@ -53,6 +53,22 @@ except Exception as e:
     logger.error(f"Failed to load ghana_corrections.json: {e}")
     print(f"Error loading corrections: {e}")
 
+# ============== LEARNED PATTERNS (Self-Training) ==============
+# Patterns learned from user corrections - checked FIRST for highest priority
+LEARNED_PATTERNS = {}
+LEARNED_PATTERNS_FILE = os.path.join(current_dir, 'learned_patterns.json')
+
+try:
+    if os.path.exists(LEARNED_PATTERNS_FILE):
+        with open(LEARNED_PATTERNS_FILE, 'r') as f:
+            LEARNED_PATTERNS = json.load(f)
+        print(f"🧠 Loaded {len(LEARNED_PATTERNS)} learned patterns from learned_patterns.json")
+    else:
+        print("🧠 No learned_patterns.json found, starting fresh")
+except Exception as e:
+    logger.error(f"Failed to load learned_patterns.json: {e}")
+    print(f"Error loading learned patterns: {e}")
+
 @lru_cache(maxsize=1000)
 def normalize_ghana_accent(text: str) -> str:
     """Normalize Ghana accent pronunciations - CACHED for speed"""
@@ -365,6 +381,12 @@ def parse_command(text: str) -> dict:
         return {"type": "unknown", "confidence": 0.0}
     
     text = text.lower().strip()
+    
+    # 0. Check LEARNED PATTERNS first (highest priority - from user corrections)
+    if text in LEARNED_PATTERNS:
+        cmd_type = LEARNED_PATTERNS[text]
+        print(f"🧠 Matched learned pattern: '{text}' → {cmd_type}")
+        return {"type": cmd_type, "confidence": 0.98, "learned": True}
     
     # 1. Check exact single-word matches first (O(1))
     if text in EXACT_MATCHES:
@@ -848,15 +870,114 @@ def parse():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def save_learned_patterns():
+    """Save learned patterns to disk for persistence"""
+    try:
+        with open(LEARNED_PATTERNS_FILE, 'w') as f:
+            json.dump(LEARNED_PATTERNS, f, indent=2)
+        print(f"💾 Saved {len(LEARNED_PATTERNS)} learned patterns to disk")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save learned patterns: {e}")
+        return False
+
+
+@app.route('/learn', methods=['POST'])
+def learn():
+    """
+    Learn a new pattern from user correction
+    Endpoint called when user corrects a failed voice command
+    """
+    try:
+        data = request.get_json()
+        raw_text = data.get('raw_text', '').lower().strip()
+        correct_command = data.get('correct_command', '').strip()
+        
+        if not raw_text or not correct_command:
+            return jsonify({
+                "success": False, 
+                "error": "Missing raw_text or correct_command"
+            }), 400
+        
+        # Add to learned patterns
+        LEARNED_PATTERNS[raw_text] = correct_command
+        
+        # Clear LRU cache so new pattern is used
+        parse_command.cache_clear()
+        
+        # Save to disk for persistence
+        save_learned_patterns()
+        
+        print(f"🧠 Learned new pattern: '{raw_text}' → {correct_command}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Learned: '{raw_text}' → {correct_command}",
+            "total_learned": len(LEARNED_PATTERNS)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/patterns', methods=['GET'])
+def get_patterns():
+    """Get all learned patterns (for admin/debugging)"""
+    return jsonify({
+        "success": True,
+        "learned_patterns": LEARNED_PATTERNS,
+        "total": len(LEARNED_PATTERNS)
+    })
+
+
+@app.route('/patterns/sync', methods=['POST'])
+def sync_patterns():
+    """
+    Sync learned patterns from external source (Supabase)
+    Called periodically to sync patterns learned on other instances
+    """
+    try:
+        data = request.get_json()
+        patterns = data.get('patterns', {})
+        
+        if not isinstance(patterns, dict):
+            return jsonify({"success": False, "error": "patterns must be a dict"}), 400
+        
+        # Merge patterns (new patterns take precedence)
+        added_count = 0
+        for pattern, command in patterns.items():
+            if pattern not in LEARNED_PATTERNS:
+                LEARNED_PATTERNS[pattern.lower().strip()] = command
+                added_count += 1
+        
+        # Save merged patterns
+        save_learned_patterns()
+        
+        # Clear cache
+        parse_command.cache_clear()
+        
+        return jsonify({
+            "success": True,
+            "added": added_count,
+            "total": len(LEARNED_PATTERNS)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/', methods=['GET'])
 def root():
     """Service info"""
     return jsonify({
         "service": "Buyvia Voice Recognition",
+        "version": "2.0 - Self-Learning",
+        "learned_patterns": len(LEARNED_PATTERNS),
         "endpoints": {
             "/health": "GET - Health check",
             "/transcribe": "POST - Transcribe audio file",
-            "/parse": "POST - Parse text command"
+            "/parse": "POST - Parse text command",
+            "/learn": "POST - Learn new pattern from correction",
+            "/patterns": "GET - View learned patterns",
+            "/patterns/sync": "POST - Sync patterns from database"
         }
     })
 
